@@ -206,7 +206,7 @@ func (q *QueryMock) All(result interface{}) error {
 		*v = append(*v, q.Result...)
 		return nil
 	}
-	return errors.New("unkown type")
+	return errors.New("unknown type")
 }
 func (q *QueryMock) Count() (n int, err error) {
 	q.CountCalled = true
@@ -268,7 +268,7 @@ func TestCollectionHandlerServeHTTP(t *testing.T) {
 		var dtResponse types.Response
 		err := dec.Decode(&dtResponse)
 		if err != nil {
-			t.Errorf("case %d: could not marshal reponse: %v", i, err)
+			t.Errorf("case %d: could not marshal response: %v", i, err)
 		}
 		if dtResponse.Error != "" {
 			t.Errorf("case %d: unexpected error returned. want %v, got %v",
