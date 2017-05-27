@@ -11,9 +11,86 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+// Query interface defines the *mgo.Query methods used.
+type Query interface {
+	All(result interface{}) error
+	Count() (n int, err error)
+	Limit(n int) Query
+	Skip(n int) Query
+	Sort(fields ...string) Query
+}
+
+// Collection interface contains the *mgo.Collection methods used.
+type Collection interface {
+	Count() (n int, err error)
+	Find(query interface{}) Query
+}
+
+// queryWrapper wraps a *mgo.Query into Query interface to allow for mocked
+// testing.
+type queryWrapper struct {
+	q *mgo.Query
+}
+
+// All wraps *mgo.Query.All().
+func (w *queryWrapper) All(result interface{}) error {
+	return w.q.All(result)
+}
+
+// Count wraps *mgo.Query.Count().
+func (w *queryWrapper) Count() (n int, err error) {
+	return w.q.Count()
+}
+
+// Limit wraps *mgo.Query.Limit().
+func (w *queryWrapper) Limit(n int) Query {
+	return &queryWrapper{
+		q: w.q.Limit(n),
+	}
+}
+
+// Skip wraps *mgo.Query.Skip().
+func (w *queryWrapper) Skip(n int) Query {
+	return &queryWrapper{
+		q: w.q.Skip(n),
+	}
+}
+
+// Sort wraps *mgo.Query.Sort().
+func (w *queryWrapper) Sort(fields ...string) Query {
+	return &queryWrapper{
+		q: w.q.Sort(fields...),
+	}
+}
+
+// collectionWrapper wraps a *mgo.Collection into Query interface to allow for mocked
+// testing.
+type collectionWrapper struct {
+	c *mgo.Collection
+}
+
+// Count wraps *mgo.Collection.Count().
+func (cw *collectionWrapper) Count() (n int, err error) {
+	return cw.c.Count()
+}
+
+// Find wraps *mgo.Collection.Find().
+func (cw *collectionWrapper) Find(query interface{}) Query {
+	return &queryWrapper{
+		q: cw.c.Find(query),
+	}
+}
+
 // CollectionHandler provides a HTTP handler for a mgo collection.
 type CollectionHandler struct {
-	Collection *mgo.Collection
+	Collection Collection
+}
+
+// NewCollectionHandler returns a CollectionHandler for the given collection.
+func NewCollectionHandler(c *mgo.Collection) *CollectionHandler {
+	return &CollectionHandler{
+		Collection: &collectionWrapper{c: c},
+	}
 }
 
 // ServeHTTP implements the http.Handler interface
@@ -41,7 +118,10 @@ func (ch *CollectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	q = SortQuery(q, dtRequest)
 	q = RangeQuery(q, dtRequest)
-	dtResponse.Data = ResponseData(q)
+	dtResponse.Data, err = ResponseData(q)
+	if err != nil {
+		dtResponse.Error = err.Error()
+	}
 	e := json.NewEncoder(w)
 	err = e.Encode(&dtResponse)
 	if err != nil {
@@ -51,9 +131,11 @@ func (ch *CollectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // ResponseData returns the data for a given query that can be used in a
 // Datatables Response.
-func ResponseData(q *mgo.Query) (data []types.Row) {
-	results := make([]map[string]string, 0)
-	q.All(&results)
+func ResponseData(q Query) (data []types.Row, err error) {
+	var results []map[string]string
+	if err = q.All(&results); err != nil {
+		return nil, err
+	}
 	data = make([]types.Row, len(results))
 	for i, r := range results {
 		data[i].Data = r
@@ -62,7 +144,7 @@ func ResponseData(q *mgo.Query) (data []types.Row) {
 }
 
 // SortQuery sets the queries sort options based on the Request.
-func SortQuery(in *mgo.Query, r types.Request) (out *mgo.Query) {
+func SortQuery(in Query, r types.Request) (out Query) {
 	sort := make([]string, len(r.Order))
 	for i, o := range r.Order {
 		prefix := ""
@@ -76,7 +158,7 @@ func SortQuery(in *mgo.Query, r types.Request) (out *mgo.Query) {
 }
 
 // RangeQuery sets range of items to return based on the Datatables Request.
-func RangeQuery(in *mgo.Query, r types.Request) (out *mgo.Query) {
+func RangeQuery(in Query, r types.Request) (out Query) {
 	out = in.Skip(r.Start)
 	out = out.Limit(r.Length)
 	return
