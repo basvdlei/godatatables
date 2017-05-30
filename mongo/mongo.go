@@ -174,10 +174,12 @@ func CreateFilter(r types.Request) bson.M {
 		if r.Search.Regex {
 			global[i][c.Data] = bson.RegEx{
 				Pattern: r.Search.Value,
+				Options: "i",
 			}
 		} else {
 			global[i][c.Data] = bson.RegEx{
 				Pattern: regexp.QuoteMeta(r.Search.Value),
+				Options: "i",
 			}
 		}
 		// Column specific search
@@ -186,10 +188,12 @@ func CreateFilter(r types.Request) bson.M {
 			if c.Search.Regex {
 				m[c.Data] = bson.RegEx{
 					Pattern: c.Search.Value,
+					Options: "i",
 				}
 			} else {
 				m[c.Data] = bson.RegEx{
 					Pattern: regexp.QuoteMeta(c.Search.Value),
+					Options: "i",
 				}
 			}
 			column = append(column, m)

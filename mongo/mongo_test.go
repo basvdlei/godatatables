@@ -85,11 +85,13 @@ var RequestTests = []RequestTestCase{
 				{
 					"foo": bson.RegEx{
 						Pattern: "test",
+						Options: "i",
 					},
 				},
 				{
 					"bar": bson.RegEx{
 						Pattern: "test",
+						Options: "i",
 					},
 				},
 			},
@@ -165,11 +167,13 @@ var RequestTests = []RequestTestCase{
 						{
 							"foo": bson.RegEx{
 								Pattern: "^test$",
+								Options: "i",
 							},
 						},
 						{
 							"bar": bson.RegEx{
 								Pattern: "^test$",
+								Options: "i",
 							},
 						},
 					},
@@ -179,11 +183,13 @@ var RequestTests = []RequestTestCase{
 						{
 							"foo": bson.RegEx{
 								Pattern: "test",
+								Options: "i",
 							},
 						},
 						{
 							"bar": bson.RegEx{
 								Pattern: "^test$",
+								Options: "i",
 							},
 						},
 					},
