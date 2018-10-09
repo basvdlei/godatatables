@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/basvdlei/godatatables/types"
 	"gopkg.in/mgo.v2"
@@ -106,7 +107,7 @@ func (ch *CollectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var dtResponse types.Response
 	dtResponse.Draw = dtRequest.Draw
-	f := CreateFilter(dtRequest)
+	f := CreateFilterWithMultipleGlobal(dtRequest, " ")
 	q := ch.Collection.Find(f)
 	dtResponse.RecordsFiltered, err = q.Count()
 	if err != nil {
@@ -204,5 +205,26 @@ func CreateFilter(r types.Request) bson.M {
 		columnfind := bson.M{"$and": column}
 		q = bson.M{"$and": []bson.M{q, columnfind}}
 	}
+	return q
+}
+
+// CreateFilterWithMultipleGlobal creates a BSON query from a Datatables
+// Request. The global search (Request.Search.Value) is separated by sep where
+// each substring is interpreted as a separate filter. The returned filter will
+// match results that are matched all these subfilters.
+//
+// This emulates the out-of-the-box default search behavior of Datatable's
+// client side search. Where multiple search terms are separated by spaces and
+// only rows that match all these terms are displayed.
+func CreateFilterWithMultipleGlobal(r types.Request, sep string) bson.M {
+	gs := strings.Split(r.Search.Value, sep)
+	filters := make([]bson.M, len(gs))
+	for i, s := range gs {
+		// reuse the given request only replace global search
+		n := r
+		n.Search.Value = s
+		filters[i] = CreateFilter(n)
+	}
+	q := bson.M{"$and": filters}
 	return q
 }
